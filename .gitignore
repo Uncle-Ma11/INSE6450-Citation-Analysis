@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+env/
+.env
+.ipynb_checkpoints/
+
+# Data
+data/
+
+# OS
+.DS_Store
+
+# Agent
+.gemini/
