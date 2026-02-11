@@ -202,7 +202,7 @@ def main():
         if val_f1_macro > best_f1:
             best_f1 = val_f1_macro
             best_epoch = epoch + 1
-            print(f"Epoch {epoch+1}/{EPOCHS} - Loss: {avg_train_loss:.4f} - Val F1 (Macro): {val_f1_macro:.4f} ⭐ NEW BEST")
+            print(f"Epoch {epoch+1}/{EPOCHS} - Loss: {avg_train_loss:.4f} - Val F1 (Macro): {val_f1_macro:.4f}  NEW BEST")
         else:
             print(f"Epoch {epoch+1}/{EPOCHS} - Loss: {avg_train_loss:.4f} - Val F1 (Macro): {val_f1_macro:.4f}")
         

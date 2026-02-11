@@ -1,91 +1,96 @@
 import os
 import pandas as pd
 import json
-from datasets import load_from_disk
 import glob
 
 DATA_DIR = "data"
 RAW_DIR = os.path.join(DATA_DIR, "raw")
 
+def print_dataset_details(name, df, label_col=None):
+    print(f"\n{'='*20} {name} Analysis {'='*20}")
+    print(f"Shape: {df.shape}")
+    print(f"Columns: {list(df.columns)}")
+    
+    print(f"\n--- Feature Explanations (Inferred) ---")
+    for col in df.columns:
+        # Get a non-null example if possible
+        non_null_series = df[col].dropna()
+        if not non_null_series.empty:
+            example = non_null_series.iloc[0]
+        else:
+            example = "All Null"
+            
+        print(f"- {col}: Type {df[col].dtype}, Example: {str(example)[:100]}...")
+
+    print(f"\n--- Missing Values ---")
+    missing = df.isnull().sum()
+    if missing.sum() > 0:
+        print(missing[missing > 0])
+    else:
+        print("No missing values found.")
+
+    if label_col and label_col in df.columns:
+        print(f"\n--- Label Distribution ({label_col}) ---")
+        counts = df[label_col].value_counts()
+        percentages = df[label_col].value_counts(normalize=True) * 100
+        dist_df = pd.DataFrame({'Count': counts, 'Percentage': percentages})
+        print(dist_df)
+    
+    print("="*60)
+
 def analyze_act2():
-    print("-" * 50)
-    print("Analyzing ACT2...")
     act2_dir = os.path.join(RAW_DIR, "ACT2")
     if not os.path.exists(act2_dir):
         print("ACT2 directory not found.")
         return
 
-    # Look for data files
     files = glob.glob(os.path.join(act2_dir, "**", "*.csv"), recursive=True)
-    files += glob.glob(os.path.join(act2_dir, "**", "*.json"), recursive=True)
     files += glob.glob(os.path.join(act2_dir, "**", "*.tsv"), recursive=True)
     
     if not files:
-        print("No data files found in ACT2 directory.")
+        print("No files found in ACT2.")
         return
 
-    print(f"Found {len(files)} files.")
     for f in files:
-        print(f"\nChecking {os.path.basename(f)}...")
         try:
             if f.endswith('.csv'):
                 df = pd.read_csv(f)
-            elif f.endswith('.tsv'):
-                df = pd.read_csv(f, sep='\t')
             else:
-                df = pd.read_json(f)
+                df = pd.read_csv(f, sep='\t')
             
-            print(f"Shape: {df.shape}")
-            print(f"Columns: {list(df.columns)}")
-            
-            # Check for interesting columns
+            label_col = None
             if 'citation_class' in df.columns:
-                print("Label Distribution (citation_class):")
-                print(df['citation_class'].value_counts())
-            if 'citation_influence' in df.columns:
-                print("Label Distribution (citation_influence):")
-                print(df['citation_influence'].value_counts())
+                label_col = 'citation_class'
+            elif 'citation_influence' in df.columns:
+                label_col = 'citation_influence'
+                
+            print_dataset_details(f"ACT2 - {os.path.basename(f)}", df, label_col)
                 
         except Exception as e:
             print(f"Could not read {f}: {e}")
 
 def analyze_scicite():
-    print("-" * 50)
-    print("Analyzing SciCite...")
     scicite_path = os.path.join(RAW_DIR, "scicite")
-    
     if not os.path.exists(scicite_path):
         print("SciCite path not found.")
         return
 
-    # Look for jsonl files
     files = glob.glob(os.path.join(scicite_path, "**", "*.jsonl"), recursive=True)
     if not files:
-         print("No JSONL files found in SciCite.")
-         return
-         
+        print("No files found in SciCite.")
+        return
+
     for f in files:
-        print(f"\nChecking {os.path.basename(f)}...")
         try:
-             # Just read first few lines to infer schema or read fully if small
-             # SciCite files can be large, so read line by line or use pandas with lines=True
-             df = pd.read_json(f, lines=True)
-             print(f"Shape: {df.shape}")
-             print(f"Columns: {list(df.columns)}")
-             
-             if 'label' in df.columns:
-                 print("Label Distribution:")
-                 print(df['label'].value_counts())
-             elif 'intent' in df.columns:
-                 print("Intent Distribution:")
-                 print(df['intent'].value_counts())
+            # SciCite files can be large, reading entire file for analysis
+            df = pd.read_json(f, lines=True)
+            label_col = 'label' if 'label' in df.columns else None
+            print_dataset_details(f"SciCite - {os.path.basename(f)}", df, label_col)
 
         except Exception as e:
             print(f"Failed to load {f}: {e}")
 
 def analyze_acl_arc():
-    print("-" * 50)
-    print("Analyzing ACL-ARC...")
     acl_dir = os.path.join(RAW_DIR, "acl_arc")
     if not os.path.exists(acl_dir):
          print("ACL-ARC directory not found.")
@@ -93,50 +98,24 @@ def analyze_acl_arc():
          
     files = glob.glob(os.path.join(acl_dir, "**", "*.csv"), recursive=True)
     if not files:
-        print("No CSV files found in ACL-ARC.")
+        print("No files found in ACL-ARC.")
         return
 
     for f in files:
-        print(f"\nChecking {os.path.basename(f)}...")
         try:
              df = pd.read_csv(f)
-             print(f"Shape: {df.shape}")
-             # Check distinct labels
-             if 'intent' in df.columns:
-                 print("Intent Distribution:")
-                 print(df['intent'].value_counts())
+             label_col = 'intent' if 'intent' in df.columns else None
+             print_dataset_details(f"ACL-ARC - {os.path.basename(f)}", df, label_col)
         except Exception as e:
             print(f"Failed to read {f}: {e}")
 
-def analyze_valenzuela():
-    print("-" * 50)
-    print("Analyzing Valenzuela...")
-    val_dir = os.path.join(RAW_DIR, "valenzuela")
-    if not os.path.exists(val_dir):
-         print("Valenzuela directory not found.")
-         return
-         
-    files = glob.glob(os.path.join(val_dir, "**", "*.csv"), recursive=True)
-    
-    if not files:
-        print("No CSV files found in Valenzuela directory.")
-        # Check for other text files
-        files = glob.glob(os.path.join(val_dir, "**", "*.txt"), recursive=True)
-    
-    for f in files:
-        print(f"\nChecking {os.path.basename(f)}...")
-        try:
-             df = pd.read_csv(f)
-             print(f"Shape: {df.shape}")
-             print(f"Columns: {list(df.columns)}")
-        except Exception as e:
-            print(f"Could not read {f}: {e}")
-
 def main():
+    print("Starting Dataset Analysis...")
     analyze_act2()
     analyze_scicite()
     analyze_acl_arc()
-    analyze_valenzuela()
+    # analyze_valenzuela() # Excluded as per request
+    print("Analysis Complete.")
 
 if __name__ == "__main__":
     main()
