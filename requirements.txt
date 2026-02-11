@@ -1,3 +1,14 @@
-
 datasets
 pandas
+transformers
+scikit-learn
+matplotlib
+requests
+tqdm
+numpy
+
+# PyTorch Nightly with CUDA 12.8 (Required for RTX 50 Series)
+--extra-index-url https://download.pytorch.org/whl/nightly/cu128
+torch>=2.11.0.dev20260210
+torchvision
+torchaudio
