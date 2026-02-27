@@ -21,7 +21,11 @@ We utilize the **SciCite** dataset (AllenAI), utilizing the `isKeyCitation` labe
 - `docs/`: Project documentation and reports.
 
 ## Dependencies
-Install required packages using:
+It is highly recommended to use a virtual environment. Activate it using:
+```bash
+.\venv\Scripts\Activate
+```
+Then install required packages using:
 ```bash
 pip install -r requirements.txt
 ```
@@ -48,14 +52,33 @@ pip install --pre torch torchvision torchaudio --index-url https://download.pyto
    python scripts/fetch_abstracts.py
    ```
 
-2. **Training**:
-   Train the Single-Head SciBERT model:
+2. **Model Training & Efficiency Monitoring**:
+   Train the Single-Head SciBERT model. The script is configured to automatically calculate and print **Training Efficiency Metrics**, including Total Training Time, Time per Epoch, Peak VRAM usage, and estimated FLOPS using the `thop` package.
    ```bash
    python scripts/train_scicite_model.py
    ```
-   Outputs (model checkpoints, plots) will be saved in the root directory.
+   *   **Metrics Evaluation**: The script tracks training loss, validation accuracy, and Macro F1-Score (to correctly evaluate the class imbalance).
+   *   **Outputs**: The best model weights will be saved to `best_model.pt` and a learning curve graph will be plotted to `results/learning curve.png`.
+
+3. **Inference Benchmarking & Quantization**:
+   To test the deployment viability and measure exact inference metrics on your hardware, run the benchmark script:
+   ```bash
+   python scripts/benchmark_inference.py
+   ```
+   This script performs the following evaluations:
+   *   **Inference Efficiency**: Measures Latency (p50 and p90) on a batch size of 1, Throughput (samples/sec) on a batch size of 32, and Peak VRAM footprint.
+   *   **Model Quantization**: The script automatically applies **PyTorch Dynamic Quantization**, converting the model's FP32 `Linear` layers to `INT8`. It then runs the CPU inference benchmark again on the quantized model to compare the latency speedups, model file size reduction, and evaluates the exact `Accuracy` and `F1 Score` degradation against the original model.
+
+4. **Single-sample Inference**:
+   To test the model on a single, custom citation example, use the inference script:
+   ```bash
+   python scripts/inference_scicite.py \
+       --context "This method improves upon previous work by using a transformer." \
+       --section "Methods" \
+       --abstract "Optional cited paper abstract text here."
+   ```
 
 ## Model Logic
-- **Input**: `Section Name` + `Citation Context` + `Cited Abstract`
+- **Input Representation**: `Section Name` + `Citation Context` + `Cited Abstract`
 - **Architecture**: `allenai/scibert_scivocab_uncased` + Dropout + LayerNorm + Linear Classifier.
-- **Goal**: Maximize Macro F1-Score to handle class imbalance.
+- **Goal**: Maximize Macro F1-Score to accurately weigh both Perfunctory and Non-Perfunctory classes.

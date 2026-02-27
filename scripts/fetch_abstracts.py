@@ -10,7 +10,9 @@ from urllib.parse import quote
 # Configuration
 DATA_DIR = "data/raw/scicite/scicite"
 TRAIN_PATH = os.path.join(DATA_DIR, "train.jsonl")
+TRAIN_AUG_PATH = os.path.join(DATA_DIR, "train_augmented.jsonl")
 DEV_PATH = os.path.join(DATA_DIR, "dev.jsonl")
+TEST_PATH = os.path.join(DATA_DIR, "test.jsonl")
 OUTPUT_PATH = os.path.join(DATA_DIR, "abstracts_mapping.json")
 
 # API Configs
@@ -296,7 +298,7 @@ def fetch_abstracts(paper_ids):
 
 def main():
     print("Gathering cited paper IDs...")
-    ids = get_unique_cited_ids([TRAIN_PATH, DEV_PATH])
+    ids = get_unique_cited_ids([TRAIN_PATH, DEV_PATH, TEST_PATH])
     print(f"Found {len(ids)} unique cited paper IDs.")
     fetch_abstracts(ids)
 

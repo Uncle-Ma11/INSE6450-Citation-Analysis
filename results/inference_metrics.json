@@ -1,0 +1,16 @@
+{
+    "gpu_throughput_bz32": 207.5473472037224,
+    "gpu_latency_p50_ms": 7.077336311340332,
+    "gpu_latency_p90_ms": 7.644510269165039,
+    "gpu_peak_vram_gb": 0.9434785842895508,
+    "gpu_accuracy": 0.696,
+    "gpu_f1_macro": 0.6196653054688126,
+    "cpu_quantized_throughput_bz32": 16.73857974242127,
+    "cpu_quantized_latency_p50_ms": 63.06731700897217,
+    "cpu_quantized_latency_p90_ms": 64.75143432617188,
+    "cpu_quantized_accuracy": 0.696,
+    "cpu_quantized_f1_macro": 0.6144089294774226,
+    "cpu_original_latency_p90_ms": 197.61724472045898,
+    "original_model_size_mb": 419.4540023803711,
+    "quantized_model_size_mb": 174.76114082336426
+}
