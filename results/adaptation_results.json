@@ -1,0 +1,21 @@
+{
+    "metrics_before": {
+        "accuracy": 0.425,
+        "f1_macro": 0.42464040025015637,
+        "p50_latency_ms": 0.539928674697876,
+        "p90_latency_ms": 8.329516649246216,
+        "model_size_mb": 420.1958866119385
+    },
+    "metrics_after": {
+        "accuracy": 0.675,
+        "f1_macro": 0.551337359792925,
+        "p50_latency_ms": 0.250399112701416,
+        "p90_latency_ms": 0.563657283782959,
+        "model_size_mb": 420.138747215271
+    },
+    "adaptation_details": {
+        "samples_used": 20,
+        "epochs": 3,
+        "training_time_seconds": 0.9649534225463867
+    }
+}

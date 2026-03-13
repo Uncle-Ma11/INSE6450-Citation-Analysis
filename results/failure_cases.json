@@ -1,0 +1,42 @@
+[
+    {
+        "text": "In addition, the result of the present study supports previous studies, which did not find increased rates of first-born children among individual with OCD (20,31,34).",
+        "true_label": "Not Key",
+        "pred_label": "Key",
+        "confidence": 0.52731853723526,
+        "failure_cause": "Unknown",
+        "mitigation_idea": "Require threshold / Test-time aug"
+    },
+    {
+        "text": "Organotypic hippocampal slice cultures\nInterface hippocampal slice cultures were prepared as described previously (Stoppini et al. 1991; Boudkkazi et al. 2007; Debanne et al. 2008).",
+        "true_label": "Not Key",
+        "pred_label": "Key",
+        "confidence": 0.5311894416809082,
+        "failure_cause": "Unknown",
+        "mitigation_idea": "Require threshold / Test-time aug"
+    },
+    {
+        "text": "\u2026the previous response, and as such, may be similar to the hippocampal \u201cdelay cells\u201d described previously in both rats (Otto and Eichenbaum, 1992b; Hampson et al., 1993) and primates (Watanabe and Niki, 1985; Miyashita, 1988; Miyashita and Chang, 1988; Riches et al., 1991; Colombo and Gross, 1994).",
+        "true_label": "Not Key",
+        "pred_label": "Key",
+        "confidence": 0.5374419689178467,
+        "failure_cause": "Unknown",
+        "mitigation_idea": "Require threshold / Test-time aug"
+    },
+    {
+        "text": "Therefore, we can compare our findings only with the data obtained by Koubek et al. (2004) who obtained them in a way similar to the present study.",
+        "true_label": "Not Key",
+        "pred_label": "Key",
+        "confidence": 0.5302420258522034,
+        "failure_cause": "Unknown",
+        "mitigation_idea": "Require threshold / Test-time aug"
+    },
+    {
+        "text": "\u2026as an ocs element (Bouchez et al. 1989; Lam et al. 1989), which was first characterized in the promoter of the Agrobacterium ocs gene and subsequently found to regulate the expression of a number of other plant genes (Chen and Singh 1999; Ellis et al. 1987; Foley et al. 2006; Ulmasov et al. 1994).",
+        "true_label": "Not Key",
+        "pred_label": "Key",
+        "confidence": 0.5352336764335632,
+        "failure_cause": "Unknown",
+        "mitigation_idea": "Require threshold / Test-time aug"
+    }
+]

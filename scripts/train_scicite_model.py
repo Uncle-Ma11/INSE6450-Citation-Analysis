@@ -15,9 +15,12 @@ import numpy as np
 import argparse
 import time
 
+# GPU Performance
+torch.backends.cudnn.benchmark = True
+
 # Configuration
 DATA_DIR = "data/raw/scicite/scicite"
-TRAIN_PATH = os.path.join(DATA_DIR, "train_augmented.jsonl")
+TRAIN_PATH = os.path.join(DATA_DIR, "train.jsonl")
 DEV_PATH = os.path.join(DATA_DIR, "dev.jsonl")
 TEST_PATH = os.path.join(DATA_DIR, "test.jsonl")
 ABSTRACTS_PATH = os.path.join(DATA_DIR, "abstracts_mapping.json")
@@ -55,10 +58,11 @@ def clean_section_name(text):
 
 # Dataset Class for Single Head KeyCitation
 class SciCiteKeyDataset(Dataset):
-    def __init__(self, df, tokenizer, max_len):
+    def __init__(self, df, tokenizer, max_len, is_train=False):
         self.df = df
         self.tokenizer = tokenizer
         self.max_len = max_len
+        self.is_train = is_train
         self.context = df.string.to_numpy()
         self.cited_ids = df.citedPaperId.to_numpy()
         self.sections = df.sectionName.apply(clean_section_name).to_numpy()
@@ -71,6 +75,18 @@ class SciCiteKeyDataset(Dataset):
     
     def __getitem__(self, item):
         context = str(self.context[item])
+        
+        # Data-Level Robustness: Dynamic Token Masking
+        # Mask 10% of the words with 50% probability during training
+        if self.is_train and np.random.rand() < 0.5:
+            words = context.split()
+            if len(words) > 0:
+                num_to_mask = max(1, int(len(words) * 0.1))
+                mask_indices = np.random.choice(len(words), size=num_to_mask, replace=False)
+                for idx in mask_indices:
+                    words[idx] = "[MASK]"
+                context = " ".join(words)
+                
         cited_id = str(self.cited_ids[item])
         section = str(self.sections[item])
         
@@ -105,18 +121,38 @@ class SciCiteKeyDataset(Dataset):
             'labels': torch.tensor(self.labels[item], dtype=torch.long)
         }
 
-# Model Class: Single Head with LayerNorm
+# Focal Loss: down-weights easy examples, focuses on hard-to-classify cases
+class FocalLoss(nn.Module):
+    def __init__(self, alpha=None, gamma=2.0, label_smoothing=0.1):
+        super(FocalLoss, self).__init__()
+        self.gamma = gamma
+        self.alpha = alpha  # class weights tensor
+        self.label_smoothing = label_smoothing
+
+    def forward(self, logits, targets):
+        ce_loss = nn.functional.cross_entropy(
+            logits, targets, weight=self.alpha,
+            label_smoothing=self.label_smoothing, reduction='none'
+        )
+        pt = torch.exp(-ce_loss)  # probability of correct class
+        focal_loss = ((1 - pt) ** self.gamma) * ce_loss
+        return focal_loss.mean()
+
+# Model Class: Two-layer classifier head for better decision boundaries
 class SciCiteKeyModel(nn.Module):
     def __init__(self):
         super(SciCiteKeyModel, self).__init__()
         self.bert = AutoModel.from_pretrained(MODEL_NAME)
-        self.drop = nn.Dropout(p=0.3)
+        hidden_size = self.bert.config.hidden_size  # 768
         
-        # LayerNorm for activation stability
-        self.layer_norm = nn.LayerNorm(self.bert.config.hidden_size)
-        
-        # Single Head for Binary Classification
-        self.classifier = nn.Linear(self.bert.config.hidden_size, 2)
+        # Two-layer classifier head: 768 → 256 → 2
+        self.classifier = nn.Sequential(
+            nn.Dropout(p=0.1),
+            nn.Linear(hidden_size, 256),
+            nn.GELU(),
+            nn.Dropout(p=0.1),
+            nn.Linear(256, 2)
+        )
         
     def forward(self, input_ids, attention_mask):
         _, pooled_output = self.bert(
@@ -124,9 +160,7 @@ class SciCiteKeyModel(nn.Module):
             attention_mask=attention_mask,
             return_dict=False
         )
-        output = self.drop(pooled_output)
-        output = self.layer_norm(output)  # Normalize before classification
-        logits = self.classifier(output)
+        logits = self.classifier(pooled_output)
         return logits
 
 def main():
@@ -144,19 +178,22 @@ def main():
     if len(df_train) < initial_train_len:
         print(f"Removed {initial_train_len - len(df_train)} overlapping examples from train set to prevent leakage.")
     
+    # Full dataset training (GPU-accelerated)
+    print(f"Training set size: {len(df_train)}, Validation set size: {len(df_dev)}")
+
     if args.debug:
         print("DEBUG MODE: Overfitting test on small dataset")
         # Use a very small subset to ensure the model can overfit (memorize)
         df_train = df_train.head(10)
-        df_dev = df_train  # Evaluate on training data to check for overfitting/memorization
+        df_dev = df_train
         global EPOCHS
         EPOCHS = 50 
         print(f"Debug Grid: Train Size={len(df_train)}, Epochs={EPOCHS}")
     
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     
-    train_dataset = SciCiteKeyDataset(df_train, tokenizer, MAX_LEN)
-    val_dataset = SciCiteKeyDataset(df_dev, tokenizer, MAX_LEN)
+    train_dataset = SciCiteKeyDataset(df_train, tokenizer, MAX_LEN, is_train=True)
+    val_dataset = SciCiteKeyDataset(df_dev, tokenizer, MAX_LEN, is_train=False)
     
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE)
@@ -164,9 +201,20 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    # Compute Class Weights
-    labels = df_train.isKeyCitation.astype(int).values
-    class_weights = compute_class_weight(class_weight='balanced', classes=np.unique(labels), y=labels)
+    # Compute Class Weights from ORIGINAL (non-augmented) training data
+    # The augmented dataset may have flipped the class distribution,
+    # so we must compute weights from the original to correctly upweight
+    # the true minority class (Key citations).
+    ORIGINAL_TRAIN_PATH = os.path.join(DATA_DIR, "train.jsonl")
+    if os.path.exists(ORIGINAL_TRAIN_PATH):
+        df_original = pd.read_json(ORIGINAL_TRAIN_PATH, lines=True)
+        original_labels = df_original.isKeyCitation.astype(int).values
+        class_weights = compute_class_weight(class_weight='balanced', classes=np.unique(original_labels), y=original_labels)
+        print(f"Class weights computed from original train.jsonl (n={len(df_original)})")
+    else:
+        print("WARNING: Original train.jsonl not found, computing weights from augmented data.")
+        original_labels = df_train.isKeyCitation.astype(int).values
+        class_weights = compute_class_weight(class_weight='balanced', classes=np.unique(original_labels), y=original_labels)
     class_weights = torch.tensor(class_weights, dtype=torch.float).to(device)
     print(f"Computed Class Weights: {class_weights}")
     
@@ -192,7 +240,12 @@ def main():
     total_steps = len(train_loader) * EPOCHS // ACCUMULATION_STEPS
     scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=0, num_training_steps=total_steps)
     
-    criterion = nn.CrossEntropyLoss(weight=class_weights)
+    # Mixed Precision (AMP) for GPU acceleration
+    scaler = torch.cuda.amp.GradScaler(enabled=(device.type == "cuda"))
+    
+    # Focal Loss with class weights and label smoothing
+    criterion = FocalLoss(alpha=class_weights, gamma=2.0, label_smoothing=0.1)
+    print(f"Using FocalLoss with gamma=2.0, label_smoothing=0.1")
     
     history = {
         'train_loss': [],
@@ -216,25 +269,29 @@ def main():
         model.train()
         total_loss = 0
         progress_bar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{EPOCHS}")
-        optimizer.zero_grad()
+        optimizer.zero_grad(set_to_none=True)
         
         for i, batch in enumerate(progress_bar):
-            input_ids = batch['input_ids'].to(device)
-            attention_mask = batch['attention_mask'].to(device)
-            labels = batch['labels'].to(device)
+            input_ids = batch['input_ids'].to(device, non_blocking=True)
+            attention_mask = batch['attention_mask'].to(device, non_blocking=True)
+            labels = batch['labels'].to(device, non_blocking=True)
             
-            logits = model(input_ids, attention_mask)
-            loss = criterion(logits, labels)
+            # Mixed Precision Forward Pass
+            with torch.cuda.amp.autocast(enabled=(device.type == "cuda")):
+                logits = model(input_ids, attention_mask)
+                loss = criterion(logits, labels)
             
             # Gradient Accumulation
             loss = loss / ACCUMULATION_STEPS
-            loss.backward()
+            scaler.scale(loss).backward()
             
             if (i + 1) % ACCUMULATION_STEPS == 0:
+                scaler.unscale_(optimizer)
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-                optimizer.step()
+                scaler.step(optimizer)
+                scaler.update()
                 scheduler.step()
-                optimizer.zero_grad()
+                optimizer.zero_grad(set_to_none=True)
             
             total_loss += loss.item() * ACCUMULATION_STEPS
             progress_bar.set_postfix({'loss': loss.item() * ACCUMULATION_STEPS})
@@ -249,12 +306,13 @@ def main():
         
         with torch.no_grad():
             for batch in val_loader:
-                input_ids = batch['input_ids'].to(device)
-                attention_mask = batch['attention_mask'].to(device)
-                labels = batch['labels'].to(device)
+                input_ids = batch['input_ids'].to(device, non_blocking=True)
+                attention_mask = batch['attention_mask'].to(device, non_blocking=True)
+                labels = batch['labels'].to(device, non_blocking=True)
                 
-                logits = model(input_ids, attention_mask)
-                loss = criterion(logits, labels)
+                with torch.cuda.amp.autocast(enabled=(device.type == "cuda")):
+                    logits = model(input_ids, attention_mask)
+                    loss = criterion(logits, labels)
                 val_loss += loss.item() * input_ids.size(0)
                 
                 _, p = torch.max(logits, dim=1)
@@ -302,7 +360,7 @@ def main():
     # Load test dataset for final metric reporting
     print("\nLoading Test Data for Final Report...")
     df_test = pd.read_json(TEST_PATH, lines=True)
-    test_dataset = SciCiteKeyDataset(df_test, tokenizer, MAX_LEN)
+    test_dataset = SciCiteKeyDataset(df_test, tokenizer, MAX_LEN, is_train=False)
     test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE)
     
     if os.path.exists("best_model.pt"):

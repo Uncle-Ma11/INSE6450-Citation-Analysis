@@ -15,6 +15,7 @@ data/
 # Agent
 .gemini/
 .agent/
+agent/
 
 # Model Weights
 *.pt
