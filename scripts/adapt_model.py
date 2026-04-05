@@ -1,42 +1,21 @@
 import os
+import sys
 import json
 import time
 import torch
 import pandas as pd
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
-from transformers import AutoTokenizer, AutoModel, get_linear_schedule_with_warmup
+from transformers import AutoTokenizer, get_linear_schedule_with_warmup
 from sklearn.metrics import f1_score, accuracy_score
 import torch.nn as nn
 import torch.optim as optim
 
-MODEL_NAME = "allenai/scibert_scivocab_uncased"
-MAX_LEN = 512
-BATCH_SIZE = 16
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from model_utils import SciCiteKeyModel, load_model, load_abstracts
+from model_utils import MODEL_NAME, MAX_LEN, TEST_PATH, TRAIN_PATH, DEV_PATH
 
-class SciCiteKeyModel(nn.Module):
-    def __init__(self):
-        super(SciCiteKeyModel, self).__init__()
-        self.bert = AutoModel.from_pretrained(MODEL_NAME)
-        hidden_size = self.bert.config.hidden_size  # 768
-        
-        # Two-layer classifier head: 768 → 256 → 2
-        self.classifier = nn.Sequential(
-            nn.Dropout(p=0.3),
-            nn.Linear(hidden_size, 256),
-            nn.GELU(),
-            nn.Dropout(p=0.2),
-            nn.Linear(256, 2)
-        )
-        
-    def forward(self, input_ids, attention_mask):
-        _, pooled_output = self.bert(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            return_dict=False
-        )
-        logits = self.classifier(pooled_output)
-        return logits
+BATCH_SIZE = 16
 
 def clean_section_name(text):
     if not isinstance(text, str): return "Other"

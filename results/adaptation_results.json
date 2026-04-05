@@ -1,21 +1,21 @@
 {
     "metrics_before": {
-        "accuracy": 0.425,
-        "f1_macro": 0.42464040025015637,
-        "p50_latency_ms": 0.539928674697876,
-        "p90_latency_ms": 8.329516649246216,
-        "model_size_mb": 420.1958866119385
+        "accuracy": 0.775,
+        "f1_macro": 0.7630019749835418,
+        "p50_latency_ms": 0.4996359348297119,
+        "p90_latency_ms": 7.8375279903411865,
+        "model_size_mb": 420.14071464538574
     },
     "metrics_after": {
-        "accuracy": 0.675,
-        "f1_macro": 0.551337359792925,
-        "p50_latency_ms": 0.250399112701416,
-        "p90_latency_ms": 0.563657283782959,
-        "model_size_mb": 420.138747215271
+        "accuracy": 0.8,
+        "f1_macro": 0.7866666666666666,
+        "p50_latency_ms": 0.2558678388595581,
+        "p90_latency_ms": 0.457724928855896,
+        "model_size_mb": 420.141318321228
     },
     "adaptation_details": {
         "samples_used": 20,
         "epochs": 3,
-        "training_time_seconds": 0.9649534225463867
+        "training_time_seconds": 0.95261549949646
     }
 }

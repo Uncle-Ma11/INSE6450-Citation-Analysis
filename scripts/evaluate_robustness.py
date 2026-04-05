@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import time
 import torch
@@ -6,40 +7,16 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from torch.utils.data import Dataset, DataLoader
-from transformers import AutoTokenizer, AutoModel
 from sklearn.metrics import f1_score, accuracy_score
 import torch.nn as nn
 import nlpaug.augmenter.word as naw
 import nlpaug.augmenter.char as nac
 
-# Ensure model definition is available
-MODEL_NAME = "allenai/scibert_scivocab_uncased"
-MAX_LEN = 512
-BATCH_SIZE = 16
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from model_utils import SciCiteKeyModel, load_model, load_abstracts
+from model_utils import MODEL_NAME, MAX_LEN, TEST_PATH
 
-class SciCiteKeyModel(nn.Module):
-    def __init__(self):
-        super(SciCiteKeyModel, self).__init__()
-        self.bert = AutoModel.from_pretrained(MODEL_NAME)
-        hidden_size = self.bert.config.hidden_size  # 768
-        
-        # Two-layer classifier head: 768 → 256 → 2
-        self.classifier = nn.Sequential(
-            nn.Dropout(p=0.3),
-            nn.Linear(hidden_size, 256),
-            nn.GELU(),
-            nn.Dropout(p=0.2),
-            nn.Linear(256, 2)
-        )
-        
-    def forward(self, input_ids, attention_mask):
-        _, pooled_output = self.bert(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            return_dict=False
-        )
-        logits = self.classifier(pooled_output)
-        return logits
+BATCH_SIZE = 16
 
 def clean_section_name(text):
     if not isinstance(text, str):
@@ -55,6 +32,7 @@ def clean_section_name(text):
         return "Discussion"
     else:
         return "Other"
+
 
 class RobustnessDataset(Dataset):
     def __init__(self, df, tokenizer, max_len, abstracts):
@@ -168,29 +146,22 @@ def extract_failure_cases(df, true_labels, preds, confidences, max_cases=5):
     return failures
 
 def main():
+    from transformers import AutoTokenizer
     os.makedirs('results', exist_ok=True)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
-    
+
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    model = SciCiteKeyModel().to(device)
-    
-    model_path = "best_model.pt"
-    if os.path.exists(model_path):
-        model.load_state_dict(torch.load(model_path, map_location=device), strict=False)
-        print("Loaded best_model.pt")
-    else:
-        print("Model file not found. Evaluating with untrained weights (NOT recommended).")
-        
+    model = load_model("best_model.pt", device)
+
     # Load abstracts mapping
     print("Loading abstracts mapping...")
-    with open('data/raw/scicite/scicite/abstracts_mapping.json', 'r', encoding='utf-8') as f:
-        abstracts = json.load(f)
+    abstracts = load_abstracts()
 
-    # Load Test Data
-    test_path = "data/raw/scicite/scicite/test.jsonl"
-    print(f"Loading test data from {test_path}...")
-    df_test = pd.read_json(test_path, lines=True)
+    # Load Stratified Test Data (resplit_test.jsonl)
+    print(f"Loading test data from {TEST_PATH}...")
+    df_test = pd.read_json(TEST_PATH, lines=True)
+    df_test["isKeyCitation"] = df_test["isKeyCitation"].fillna(False).astype(bool)
 
     # Evaluation Scenarios
     scenarios = [

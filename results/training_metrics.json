@@ -1,11 +1,124 @@
 {
-    "total_training_time_s": 355.7551996707916,
-    "time_per_epoch_s": 71.15103993415832,
-    "peak_vram_gb": 5.070823669433594,
-    "best_val_f1_macro": 0.7110469014437579,
-    "best_epoch": 5,
-    "final_val_accuracy": 0.6034390112842558,
-    "flops_per_sample_gflops": 87.053304832,
-    "model_parameters": 85843970.0,
-    "model_size_mb": 420.1958866119385
+  "config": {
+    "data_dir": "data/raw/scicite/scicite",
+    "train_file": null,
+    "dev_file": null,
+    "test_file": null,
+    "model_name": "allenai/scibert_scivocab_uncased",
+    "results_dir": "results",
+    "checkpoint": "best_model.pt",
+    "max_len": 512,
+    "batch_size": 16,
+    "accum_steps": 2,
+    "epochs": 8,
+    "patience": 2,
+    "lr": 3e-05,
+    "weight_decay": 0.01,
+    "warmup_ratio": 0.06,
+    "focal_gamma": 2.0,
+    "label_smoothing": 0.0,
+    "dropout1": 0.3,
+    "dropout2": 0.2,
+    "seed": 42,
+    "no_abstracts": false,
+    "mask_aug_prob": 0.5,
+    "mask_word_frac": 0.1
+  },
+  "split_sizes": {
+    "train": 8816,
+    "val": 1102,
+    "test": 1102
+  },
+  "key_ratios": {
+    "train": 0.4112,
+    "val": 0.4111,
+    "test": 0.4111
+  },
+  "training": {
+    "epochs_ran": 8,
+    "best_val_f1": 0.7547,
+    "total_time_s": 543.6,
+    "time_per_epoch_s": 67.9,
+    "peak_vram_gb": 5.496,
+    "history": {
+      "train_loss": [
+        0.1915,
+        0.1646,
+        0.1339,
+        0.075,
+        0.039,
+        0.0231,
+        0.0129,
+        0.0073
+      ],
+      "val_f1": [
+        0.4435,
+        0.6704,
+        0.7194,
+        0.7014,
+        0.72,
+        0.7547,
+        0.7173,
+        0.7326
+      ],
+      "val_f1_key": [
+        0.598,
+        0.6393,
+        0.6636,
+        0.684,
+        0.6636,
+        0.709,
+        0.6483,
+        0.6729
+      ],
+      "val_f1_notkey": [
+        0.2889,
+        0.7015,
+        0.7752,
+        0.7187,
+        0.7764,
+        0.8003,
+        0.7863,
+        0.7923
+      ],
+      "val_acc": [
+        0.4864,
+        0.6733,
+        0.7305,
+        0.7024,
+        0.7314,
+        0.7632,
+        0.7341,
+        0.7459
+      ]
+    }
+  },
+  "val_metrics": {
+    "f1_macro": 0.7547,
+    "accuracy": 0.7632,
+    "f1_notkey": 0.8003,
+    "f1_key": 0.709,
+    "prec_notkey": 0.7948,
+    "prec_key": 0.7162,
+    "rec_notkey": 0.8059,
+    "rec_key": 0.702
+  },
+  "test_metrics": {
+    "f1_macro": 0.7068,
+    "accuracy": 0.7178,
+    "f1_notkey": 0.7635,
+    "f1_key": 0.6502,
+    "prec_notkey": 0.7538,
+    "prec_key": 0.6628,
+    "rec_notkey": 0.7735,
+    "rec_key": 0.638
+  },
+  "calibration": {
+    "best_threshold": 0.5,
+    "val_f1_calibrated": 0.7547,
+    "val_key_f1_calibrated": 0.709,
+    "test_f1_calibrated": 0.7068,
+    "test_key_f1_calibrated": 0.6502
+  },
+  "val_test_f1_gap": 0.0479
 }

@@ -126,12 +126,16 @@ def main():
     print("Initializing Monitoring Pipeline...")
     os.makedirs('results', exist_ok=True)
     
-    # Load Dev data to act as our simulated production stream
-    dev_path = "data/raw/scicite/scicite/dev.jsonl"
+    # Load resplit val data to act as our simulated production stream
+    dev_path = "data/raw/scicite/scicite/resplit_val.jsonl"
+    if not os.path.exists(dev_path):
+        dev_path = "data/raw/scicite/scicite/dev.jsonl"
     df_prod = pd.read_json(dev_path, lines=True)
-    
-    # Use Test data as the "reference" distribution (what the model was trained/validated on)
-    test_path = "data/raw/scicite/scicite/test.jsonl"
+
+    # Use resplit test data as the "reference" distribution
+    test_path = "data/raw/scicite/scicite/resplit_test.jsonl"
+    if not os.path.exists(test_path):
+        test_path = "data/raw/scicite/scicite/test.jsonl"
     df_ref = pd.read_json(test_path, lines=True)
     
     print("Simulating stream over 5 batches...")

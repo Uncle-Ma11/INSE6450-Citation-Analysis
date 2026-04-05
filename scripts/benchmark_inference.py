@@ -1,5 +1,6 @@
 import torch
 import time
+import json
 import numpy as np
 import pandas as pd
 from torch.utils.data import DataLoader
@@ -8,26 +9,17 @@ import os
 import sys
 from sklearn.metrics import accuracy_score, f1_score
 
-# Adding current folder to path so we can import from train_scicite_model without issues
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-from train_scicite_model import SciCiteKeyModel, SciCiteKeyDataset, MODEL_NAME, MAX_LEN, DATA_DIR, DEV_PATH
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from model_utils import SciCiteKeyModel, load_model, load_abstracts, CitationDataset
+from model_utils import MODEL_NAME, MAX_LEN, TEST_PATH, DEV_PATH
 
 def benchmark_inference():
     print("--- Inference Benchmarking ---")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
-    
-    # Load model
-    model = SciCiteKeyModel()
-    if os.path.exists("best_model.pt"):
-        model.load_state_dict(torch.load("best_model.pt", map_location=device), strict=False)
-        print("Loaded best_model.pt")
-    else:
-        print("best_model.pt not found. Using untrained model for benchmark.")
-    
-    model.to(device)
-    model.eval()
+
+    # Load model using canonical loader
+    model = load_model("best_model.pt", device)
 
     print("\n1. Dynamic Quantization (CPU only)")
     # PyTorch Dynamic Quantization reduces Linear layers to Int8
@@ -37,16 +29,13 @@ def benchmark_inference():
     model.to(device) # put original model back to GPU
     print("Quantization applied.")
 
-    # Load a subset of dev data
+    # Load Test Data (resplit)
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    # print("Loading Dev Data for benchmark...")
-    # df_dev = pd.read_json(DEV_PATH, lines=True).head(500) # subset for faster benchmark
-    # dataset = SciCiteKeyDataset(df_dev, tokenizer, MAX_LEN)
-    
+    abstracts = load_abstracts()
     print("Loading Test Data for final benchmark...")
-    from train_scicite_model import TEST_PATH
-    df_test = pd.read_json(TEST_PATH, lines=True).head(500) # subset for faster benchmark
-    dataset = SciCiteKeyDataset(df_test, tokenizer, MAX_LEN)
+    df_test = pd.read_json(TEST_PATH, lines=True).head(500)
+    df_test["isKeyCitation"] = df_test["isKeyCitation"].fillna(False).astype(bool)
+    dataset = CitationDataset(df_test, tokenizer, abstracts, max_len=MAX_LEN)
     
     batch_size = 32
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
